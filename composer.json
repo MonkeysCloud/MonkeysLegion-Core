@@ -1,0 +1,23 @@
+{
+  "name": "monkeyscloud/monkeyslegion-core",
+  "description": "Core runtime (kernel, events, helpers) for the MonkeysLegion PHP framework.",
+  "type": "library",
+  "license": "MIT",
+  "require": {
+    "php": "^8.4",
+    "psr/container": "^2.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "MonkeysLegion\\Core\\": "src/"
+    },
+    "files": [
+      "src/Support/helpers.php"
+    ]
+  },
+  "extra": {
+    "branch-alias": {
+      "dev-main": "1.0-dev"
+    }
+  }
+}
