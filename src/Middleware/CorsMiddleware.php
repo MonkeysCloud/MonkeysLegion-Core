@@ -66,49 +66,45 @@ final class CorsMiddleware implements MiddlewareInterface
     ): ResponseInterface {
         $origin = $request->getHeaderLine('Origin');
 
-        // If no Origin header  →  not a CORS request – simply continue.
+        // If no Origin header → not a CORS request
         if ($origin === '') {
             return $handler->handle($request);
         }
 
-        /* -----------------------------------------------------------
-         * Is the requesting origin allowed?
-         * ----------------------------------------------------------- */
-        if (!$this->isOriginAllowed($origin)) {
-            // Spec diverges on what to do; safest is to proceed w/out CORS hdrs.
+        // Is the requesting origin allowed?
+        if (! $this->isOriginAllowed($origin)) {
             return $handler->handle($request);
         }
 
-        /* -----------------------------------------------------------
-         * Pre-flight (OPTIONS + Access-Control-Request-Method)
-         * ----------------------------------------------------------- */
-        if (
-            $request->getMethod() === 'OPTIONS' &&
-            $request->hasHeader('Access-Control-Request-Method')
-        ) {
-            $response = $this->emptyResponse(204);
+        try {
+            // Pre-flight (OPTIONS + Access-Control-Request-Method)
+            if (
+                $request->getMethod() === 'OPTIONS' &&
+                $request->hasHeader('Access-Control-Request-Method')
+            ) {
+                $response = $this->emptyResponse(204)
+                    ->withHeader(
+                        'Access-Control-Allow-Methods',
+                        implode(',', $this->allowMethods)
+                    )
+                    ->withHeader(
+                        'Access-Control-Allow-Headers',
+                        implode(',', $this->allowHeaders)
+                    );
 
-            $response = $this->withCommonHeaders($response, $origin)
-                ->withHeader(
-                    'Access-Control-Allow-Methods',
-                    implode(',', $this->allowMethods)
-                )
-                ->withHeader(
-                    'Access-Control-Allow-Headers',
-                    implode(',', $this->allowHeaders)
-                );
-
-            if ($this->maxAge > 0) {
-                $response = $response->withHeader('Access-Control-Max-Age', (string) $this->maxAge);
+                if ($this->maxAge > 0) {
+                    $response = $response->withHeader('Access-Control-Max-Age', (string) $this->maxAge);
+                }
+            } else {
+                // Actual request — may throw
+                $response = $handler->handle($request);
             }
-
-            return $response;
+        } catch (\Throwable $e) {
+            // On any exception, return a bare 500 so CORS headers can be added
+            $response = $this->emptyResponse(500);
         }
 
-        /* -----------------------------------------------------------
-         * Actual request – call next handler then append headers
-         * ----------------------------------------------------------- */
-        $response = $handler->handle($request);
+        // Now always append the common CORS headers
         $response = $this->withCommonHeaders($response, $origin);
 
         if ($this->exposeHeaders) {
