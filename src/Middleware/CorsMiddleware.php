@@ -100,8 +100,13 @@ final class CorsMiddleware implements MiddlewareInterface
                 $response = $handler->handle($request);
             }
         } catch (\Throwable $e) {
-            // On any exception, return a bare 500 so CORS headers can be added
-            $response = $this->emptyResponse(500);
+            $response = $this->emptyResponse(500)
+                ->withHeader('Content-Type', 'application/json');
+
+            $response->getBody()->write(json_encode([
+                'error'   => true,
+                'message' => $e->getMessage(),
+            ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
         }
 
         // Now always append the common CORS headers
