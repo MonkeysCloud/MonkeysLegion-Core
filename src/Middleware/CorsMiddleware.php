@@ -44,7 +44,7 @@ final class CorsMiddleware implements MiddlewareInterface
 
     public function __construct(
         array|string                 $allowOrigin      = '*',
-        array|string                 $allowMethods     = ['GET','POST','OPTIONS'],
+        array|string                 $allowMethods     = ['GET','POST','OPTIONS','PATCH','DELETE'],
         array|string                 $allowHeaders     = ['Content-Type','Authorization'],
         array|string|null            $exposeHeaders    = null,
         private bool                 $allowCredentials = false,
