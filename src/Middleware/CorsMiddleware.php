@@ -175,7 +175,6 @@ final class CorsMiddleware implements MiddlewareInterface
 
         // Fallback to a tiny built-in response (if your project lacks PSR-17)
         $handle = fopen('php://memory', 'r+');
-        if (!$handle) throw new \RuntimeException('Failed to create temporary memory stream');
         $emptyBody = new Stream($handle);
 
         return new Response($emptyBody, $status);
