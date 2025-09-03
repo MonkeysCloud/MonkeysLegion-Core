@@ -6,7 +6,14 @@
   "require": {
     "php": "^8.4",
     "psr/container": "^2.0",
-    "psr/log": "^3.0"
+    "psr/log": "^3.0",
+    "psr/http-message": "^2.0",
+    "psr/http-server-handler": "^1.0",
+    "psr/http-server-middleware": "^1.0",
+    "psr/http-factory": "^1.1",
+    "monkeyscloud/monkeyslegion-http": "^1.0",
+    "monkeyscloud/monkeyslegion-router": "^1.0",
+    "monkeyscloud/monkeyslegion-di": "^1.0"
   },
   "autoload": {
     "psr-4": {
@@ -20,5 +27,8 @@
     "branch-alias": {
       "dev-main": "1.0.x-dev"
     }
+  },
+  "require-dev": {
+    "phpstan/phpstan": "^2.1"
   }
 }

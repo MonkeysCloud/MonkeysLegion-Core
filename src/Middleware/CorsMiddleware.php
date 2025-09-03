@@ -1,8 +1,11 @@
 <?php
+
 declare(strict_types=1);
 
 namespace MonkeysLegion\Core\Middleware;
 
+use MonkeysLegion\Http\Message\Response;
+use MonkeysLegion\Http\Message\Stream;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -33,19 +36,28 @@ use Psr\Http\Server\RequestHandlerInterface;
  */
 final class CorsMiddleware implements MiddlewareInterface
 {
-    /** @var string[]|string[]|string */
-    private array|string $allowOrigin;
-    /** @var string[]|string */
-    private array|string $allowMethods;
-    /** @var string[]|string */
-    private array|string $allowHeaders;
-    /** @var string[]|string|null */
-    private array|string|null $exposeHeaders;
+    /** @var string[] */
+    private array $allowOrigin;
 
+    /** @var string[] */
+    private array $allowMethods;
+
+    /** @var string[] */
+    private array $allowHeaders;
+
+    /** @var string[]|null */
+    private ?array $exposeHeaders;
+
+    /**
+     * @param array<string>|string $allowOrigin
+     * @param array<string>|string $allowMethods
+     * @param array<string>|string $allowHeaders
+     * @param array<string>|null $exposeHeaders
+     */
     public function __construct(
         array|string                 $allowOrigin      = '*',
-        array|string                 $allowMethods     = ['GET','POST','OPTIONS','PATCH','DELETE'],
-        array|string                 $allowHeaders     = ['Content-Type','Authorization'],
+        array|string                 $allowMethods     = ['GET', 'POST', 'OPTIONS', 'PATCH', 'DELETE'],
+        array|string                 $allowHeaders     = ['Content-Type', 'Authorization'],
         array|string|null            $exposeHeaders    = null,
         private bool                 $allowCredentials = false,
         private int                  $maxAge           = 0,
@@ -103,7 +115,7 @@ final class CorsMiddleware implements MiddlewareInterface
             $response = $this->emptyResponse(500)
                 ->withHeader('Content-Type', 'application/json');
 
-            $response->getBody()->write(json_encode([
+            $response->getBody()->write((string) json_encode([
                 'error'   => true,
                 'message' => $e->getMessage(),
             ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
@@ -162,6 +174,10 @@ final class CorsMiddleware implements MiddlewareInterface
         }
 
         // Fallback to a tiny built-in response (if your project lacks PSR-17)
-        return new \MonkeysLegion\Http\Message\Response($status);
+        $handle = fopen('php://memory', 'r+');
+        if (!$handle) throw new \RuntimeException('Failed to create temporary memory stream');
+        $emptyBody = new Stream($handle);
+
+        return new Response($emptyBody, $status);
     }
 }

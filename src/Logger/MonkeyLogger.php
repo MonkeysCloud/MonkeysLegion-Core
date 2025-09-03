@@ -6,11 +6,14 @@ use MonkeysLegion\Core\Contracts\FrameworkLoggerInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Psr\Log\NullLogger;
+use Stringable;
 
 class MonkeyLogger implements FrameworkLoggerInterface
 {
     private LoggerInterface $logger;
     private string $env;
+
+    /** @var array<string> */
     private array $validLevels = [
         LogLevel::EMERGENCY,
         LogLevel::ALERT,
@@ -28,29 +31,57 @@ class MonkeyLogger implements FrameworkLoggerInterface
         $this->env = strtolower($env ?? 'dev');
     }
 
+    /**
+     * Set the underlying logger instance.
+     *
+     * @param LoggerInterface $logger
+     * @return $this
+     */
     public function setLogger(LoggerInterface $logger): self
     {
         $this->logger = $logger;
         return $this;
     }
 
+    /**
+     * Set the current environment.
+     *
+     * @param string $env
+     * @return $this
+     */
     public function setEnvironment(string $env): self
     {
         $this->env = strtolower($env);
         return $this;
     }
 
+    /**
+     * Get the underlying logger instance.
+     *
+     * @return LoggerInterface
+     */
     public function getLogger(): LoggerInterface
     {
         return $this->logger;
     }
 
+    /**
+     * Get the current environment.
+     *
+     * @return string
+     */
     public function getEnvironment(): string
     {
         return $this->env;
     }
 
-    public function smartLog(string $message, array $context = []): void
+    /**
+     * Log a message at the appropriate level based on the environment.
+     *
+     * @param string $message The log message.
+     * @param array<mixed> $context The log context.
+     */
+    public function smartLog(string|Stringable $message, array $context = []): void
     {
         $context = $this->enrichContext($context);
 
@@ -78,54 +109,58 @@ class MonkeyLogger implements FrameworkLoggerInterface
         }
     }
 
-    public function emergency($message, array $context = []): void
+    public function emergency(string|Stringable $message, array $context = []): void
     {
         $this->logger->emergency($message, $this->enrichContext($context));
     }
 
-    public function alert($message, array $context = []): void
+    public function alert(string|Stringable $message, array $context = []): void
     {
         $this->logger->alert($message, $this->enrichContext($context));
     }
 
-    public function critical($message, array $context = []): void
+    public function critical(string|Stringable $message, array $context = []): void
     {
         $this->logger->critical($message, $this->enrichContext($context));
     }
 
-    public function error($message, array $context = []): void
+    public function error(string|Stringable $message, array $context = []): void
     {
         $this->logger->error($message, $this->enrichContext($context));
     }
 
-    public function warning($message, array $context = []): void
+    public function warning(string|Stringable $message, array $context = []): void
     {
         $this->logger->warning($message, $this->enrichContext($context));
     }
 
-    public function notice($message, array $context = []): void
+    public function notice(string|Stringable $message, array $context = []): void
     {
         $this->logger->notice($message, $this->enrichContext($context));
     }
 
-    public function info($message, array $context = []): void
+    public function info(string|Stringable $message, array $context = []): void
     {
         $this->logger->info($message, $this->enrichContext($context));
     }
 
-    public function debug($message, array $context = []): void
+    public function debug(string|Stringable $message, array $context = []): void
     {
         $this->logger->debug($message, $this->enrichContext($context));
     }
 
-    public function log($level, $message, array $context = []): void
+    public function log($level, string|Stringable $message, array $context = []): void
     {
         if (!in_array($level, $this->validLevels, true)) {
-            throw new \InvalidArgumentException("Invalid log level: $level");
+            throw new \InvalidArgumentException("Invalid log level: " . var_export($level, true));
         }
         $this->logger->log($level, $message, $this->enrichContext($context));
     }
 
+    /**
+     * @param array<mixed> $context
+     * @return array<mixed>
+     */
     private function enrichContext(array $context = []): array
     {
         // TODO: Add more useful info like request ID, App name/version, etc.
