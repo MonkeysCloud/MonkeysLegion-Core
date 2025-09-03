@@ -34,6 +34,7 @@ final class RouteLoader
             new RecursiveDirectoryIterator($dir)
         );
 
+        /** @var \SplFileInfo $file */
         foreach ($it as $file) {
             if (! $file->isFile() || $file->getExtension() !== 'php') {
                 continue;
@@ -56,6 +57,7 @@ final class RouteLoader
                 : $ref->newInstance();
 
             // Register any #[Route] methods on that instance
+            if(!is_object($instance)) throw new \RuntimeException('Failed to create controller instance');
             $this->router->registerController($instance);
         }
     }
