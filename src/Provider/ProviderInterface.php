@@ -2,12 +2,12 @@
 
 namespace MonkeysLegion\Core\Provider;
 
-use MonkeysLegion\Core\Contracts\FrameworkLoggerInterface;
 use MonkeysLegion\DI\ContainerBuilder;
+use MonkeysLegion\Logger\Contracts\MonkeysLoggerInterface;
 
 interface ProviderInterface
 {
     public static function register(string $root, ContainerBuilder $c): void;
 
-    public static function setLogger(FrameworkLoggerInterface $logger): void;
+    public static function setLogger(MonkeysLoggerInterface $logger): void;
 }

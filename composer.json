@@ -13,7 +13,8 @@
     "psr/http-factory": "^1.1",
     "monkeyscloud/monkeyslegion-http": "^1.0",
     "monkeyscloud/monkeyslegion-router": "^1.0",
-    "monkeyscloud/monkeyslegion-di": "^1.0"
+    "monkeyscloud/monkeyslegion-di": "^1.0",
+    "monkeyscloud/monkeyslegion-logger": "^1.0"
   },
   "autoload": {
     "psr-4": {

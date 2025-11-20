@@ -5,6 +5,11 @@ namespace MonkeysLegion\Core\Contracts;
 use Psr\Log\LoggerInterface;
 use Stringable;
 
+/**
+ * Interface FrameworkLoggerInterface
+ *
+ * @deprecated Use Psr\Log\LoggerInterface Or MonkeysLegion\Log\Contract\MonkeysLoggerInterface instead.
+ */
 interface FrameworkLoggerInterface extends LoggerInterface
 {
     /**

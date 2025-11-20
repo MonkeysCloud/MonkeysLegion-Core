@@ -8,6 +8,11 @@ use Psr\Log\LogLevel;
 use Psr\Log\NullLogger;
 use Stringable;
 
+/**
+ * A logger that adapts its logging behavior based on the application's environment.
+ *
+ * @deprecated use MonkeysLegion\Logger package instead.
+ */
 class MonkeyLogger implements FrameworkLoggerInterface
 {
     private LoggerInterface $logger;
