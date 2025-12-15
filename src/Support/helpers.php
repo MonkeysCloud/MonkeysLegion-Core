@@ -53,6 +53,23 @@ if (!function_exists('env')) {
     }
 }
 
+/**
+ * Return an absolute path relative to the storage directory.
+ *
+ * storage_path();           // → /full/path/to/project/storage
+ * storage_path('logs');     // → /full/path/to/project/storage/logs
+ */
+if (!function_exists('storage_path')) {
+    function storage_path(string $path = ''): string
+    {
+        $storagePath = base_path('storage');
+
+        return $path !== ''
+            ? $storagePath . DIRECTORY_SEPARATOR . ltrim($path, '/\\')
+            : $storagePath;
+    }
+}
+
 if (!function_exists('dd')) {
     /**
      * Dump the given variables and terminate the script.
