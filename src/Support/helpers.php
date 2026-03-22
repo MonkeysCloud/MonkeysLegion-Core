@@ -71,42 +71,46 @@ if (!function_exists('storage_path')) {
 }
 
 if (!function_exists('dd')) {
-    /**
-     * Dump the given variables and terminate the script.
-     *
-     * @param mixed ...$args
-     */
     function dd(mixed ...$args): void
     {
         $isCli = (php_sapi_name() === 'cli' || defined('STDOUT'));
+        $bt = debug_backtrace();
+        $caller = $bt[0];
+
         foreach ($args as $arg) {
-            if (is_array($arg) || is_object($arg)) {
-                if ($isCli) {
-                    // CLI: plain text output
-                    print_r($arg);
-                } else {
-                    // Web: HTML output, escape for safety
-                    echo '<pre>' . htmlspecialchars(print_r($arg, true), ENT_QUOTES, 'UTF-8') . '</pre>';
-                }
-            } elseif (is_scalar($arg) || $arg === null) {
-                if ($isCli) {
-                    // CLI: plain text output
-                    var_export($arg);
-                    echo PHP_EOL;
-                } else {
-                    // Web: escape output
-                    echo htmlspecialchars((string)$arg, ENT_QUOTES, 'UTF-8');
-                }
+            $type = gettype($arg);
+            $label = $type;
+
+            if (is_array($arg)) $label .= ' (' . count($arg) . ')';
+            elseif (is_string($arg)) $label .= ' (' . strlen($arg) . ')';
+
+            if ($isCli) {
+                // CLI Output
+                echo "\033[1;33m[" . $caller['file'] . ":" . $caller['line'] . "]\033[0m" . PHP_EOL;
+                echo "\033[0;32mType: $label\033[0m" . PHP_EOL;
+                print_r($arg);
+                echo PHP_EOL . PHP_EOL;
             } else {
-                // fallback for resources or unknown types
-                if ($isCli) {
-                    echo gettype($arg) . PHP_EOL;
+                // Web Output
+                echo '<div style="background:#18171b; color:#eee; padding:15px; margin:10px; border-radius:5px; border-left:5px solid #ff851b; font-family:monospace; font-size:13px; box-shadow:0 10px 15px -3px rgba(0,0,0,0.5); overflow:auto;">';
+                echo '<div style="color:#666; margin-bottom:8px; border-bottom:1px solid #333; padding-bottom:4px;">' . $caller['file'] . ':' . $caller['line'] . '</div>';
+                echo '<span style="color:#ff851b; font-weight:bold; display:block; margin-bottom:5px;">' . strtoupper($label) . '</span>';
+
+                if (is_scalar($arg) || is_null($arg)) {
+                    $color = match ($type) {
+                        'string' => '#ce9178',
+                        'integer', 'double' => '#b5cea8',
+                        'boolean' => '#569cd6',
+                        'NULL' => '#569cd6',
+                        default => '#eee'
+                    };
+                    echo '<span style="color:' . $color . ';">' . htmlspecialchars(var_export($arg, true)) . '</span>';
                 } else {
-                    echo '<pre>' . htmlspecialchars(gettype($arg), ENT_QUOTES, 'UTF-8') . '</pre>';
+                    echo '<pre style="margin:0; color:#9cdcfe;">' . htmlspecialchars(print_r($arg, true)) . '</pre>';
                 }
+                echo '</div>';
             }
         }
-
         exit(1);
     }
 }
