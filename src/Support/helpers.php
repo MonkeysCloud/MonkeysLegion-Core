@@ -26,6 +26,10 @@ if (! function_exists('base_path')) {
     }
 }
 
+if (!defined('CONFIG_PATH')) {
+    define('CONFIG_PATH', base_path('config'));
+}
+
 /**
  * Get the value of an environment variable.
  *
@@ -112,5 +116,63 @@ if (!function_exists('dd')) {
             }
         }
         exit(1);
+    }
+}
+
+if (!function_exists('require_config')) {
+    function require_config(string $name): array
+    {
+        $env = env('APP_ENV', 'dev');
+
+        // Use an absolute base path (Assume CONFIG_PATH is defined elsewhere)
+        $basePath = CONFIG_PATH . "/{$name}.php";
+        $envPath  = CONFIG_PATH . "/{$name}.{$env}.php";
+
+        $config = [];
+
+        // 1. Load base config first
+        if (file_exists($basePath)) {
+            $config = require $basePath;
+        }
+
+        // 2. Merge environment-specific overrides
+        if (file_exists($envPath)) {
+            $envConfig = require $envPath;
+            // array_replace_recursive is better for nested configs (like DB settings)
+            $config = array_replace_recursive($config, $envConfig);
+        }
+
+        if (empty($config)) {
+            throw new \RuntimeException("Config '{$name}' not found at {$basePath}");
+        }
+
+        return $config;
+    }
+}
+
+if (!function_exists('include_config')) {
+    function include_config(string $name): array
+    {
+        $env = env('APP_ENV', 'dev');
+
+        // Use an absolute base path (Assume CONFIG_PATH is defined elsewhere)
+        $basePath = CONFIG_PATH . "/{$name}.php";
+        $envPath  = CONFIG_PATH . "/{$name}.{$env}.php";
+
+        $config = [];
+
+        // 1. Load base config first
+        if (file_exists($basePath)) {
+            $config = require $basePath;
+        }
+
+        // 2. Merge environment-specific overrides
+        if (file_exists($envPath)) {
+            $envConfig = require $envPath;
+            // array_replace_recursive is better for nested configs (like DB settings)
+            $config = array_replace_recursive($config, $envConfig);
+        }
+
+        return $config;
     }
 }

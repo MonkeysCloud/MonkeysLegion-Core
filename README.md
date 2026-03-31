@@ -119,6 +119,54 @@ dd($user, $order);  // Dumps both variables and exits
 - Handles arrays, objects, scalars, and null values
 - Exits with status code 1
 
+#### `env(string $key, mixed $default = null): mixed`
+
+Get the value of an environment variable with automatic type conversion.
+
+```php
+env('APP_ENV', 'production'); // Returns string
+env('DEBUG', true);          // Returns bool
+env('DB_PORT', 3306);        // Returns int
+```
+
+**Features:**
+- Checks `$_ENV`, `$_SERVER`, and `getenv()`
+- Converts string `'true'`, `'false'`, `'null'`, and `'empty'` to their PHP types
+
+#### `storage_path(string $path = ''): string`
+
+Returns an absolute path relative to the `storage` directory.
+
+```php
+storage_path();           // → /full/path/to/project/storage
+storage_path('logs');     // → /full/path/to/project/storage/logs
+```
+
+#### `CONFIG_PATH` (Constant)
+
+The absolute path to the `config` directory. By default, it uses `base_path('config')`.
+
+#### `require_config(string $name): array`
+
+Loads a configuration file with environment-specific overrides. Throws a `RuntimeException` if the configuration is not found.
+
+```php
+$config = require_config('app');
+```
+
+#### `include_config(string $name): array`
+
+Similar to `require_config`, but returns an empty array if the configuration file is not found.
+
+```php
+$config = include_config('database');
+```
+
+**Configuration Merging:**
+- Both functions load `config/{name}.php` first.
+- Then merge environment-specific overrides from `config/{name}.{env}.php` (where `{env}` is defined by `APP_ENV`).
+- Uses `array_replace_recursive()` for deep merging of nested settings.
+
 ---
 
 ### 4. Provider Interface
