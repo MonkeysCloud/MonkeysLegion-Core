@@ -1131,4 +1131,148 @@ final class CoreV2Test extends TestCase
         // This will just confirm it returns a bool
         $this->assertIsBool(windows_os());
     }
+
+    // ── New: ConfigRepository::forget() ─────────────────────
+
+    public function test_config_forget_simple(): void
+    {
+        $config = new ConfigRepository(['key' => 'value', 'other' => 'data']);
+        $config->forget('key');
+        $this->assertFalse($config->has('key'));
+        $this->assertTrue($config->has('other'));
+    }
+
+    public function test_config_forget_dot_notation(): void
+    {
+        $config = new ConfigRepository(['db' => ['host' => 'localhost', 'port' => 3306]]);
+        $config->forget('db.host');
+        $this->assertFalse($config->has('db.host'));
+        $this->assertTrue($config->has('db.port'));
+        $this->assertSame(3306, $config->get('db.port'));
+    }
+
+    public function test_config_forget_nonexistent_key(): void
+    {
+        $config = new ConfigRepository(['key' => 'value']);
+        $config->forget('nonexistent');
+        $this->assertTrue($config->has('key'));
+    }
+
+    public function test_config_forget_invalidates_cache(): void
+    {
+        $config = new ConfigRepository(['db' => ['host' => 'localhost']]);
+        // Populate cache
+        $this->assertSame('localhost', $config->get('db.host'));
+        // Remove it
+        $config->forget('db.host');
+        // Cache should be invalidated
+        $this->assertNull($config->get('db.host'));
+    }
+
+    // ── New: ConfigRepository parent cache invalidation ─────
+
+    public function test_config_set_invalidates_parent_cache(): void
+    {
+        $config = new ConfigRepository(['db' => ['host' => 'old', 'port' => 3306]]);
+        // Populate cache for parent key
+        $db = $config->get('db');
+        $this->assertSame(['host' => 'old', 'port' => 3306], $db);
+        // Change a child key
+        $config->set('db.host', 'new');
+        // Parent cache should be invalidated and reflect new data
+        $db = $config->get('db');
+        $this->assertSame('new', $db['host']);
+    }
+
+    // ── New: Kernel cycle detection ─────────────────────────
+
+    // Note: Cycle detection test requires creating providers with circular
+    // #[BootAfter] dependencies. Since the test providers in this file don't
+    // form cycles, we test that normal boot still works after the change.
+
+    public function test_kernel_boot_no_cycle(): void
+    {
+        $kernel = new Kernel(environment: Environment::Testing);
+        $kernel->register(new TestProviderA());
+        $kernel->register(new DependentProvider());
+        // Should not throw
+        $kernel->boot();
+        $this->assertTrue($kernel->isBooted);
+    }
+
+    // ── New: Path traversal prevention ──────────────────────
+
+    public function test_base_path_rejects_path_traversal(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Path traversal detected');
+        base_path('../etc/passwd');
+    }
+
+    public function test_base_path_rejects_nested_traversal(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        base_path('foo/../../bar');
+    }
+
+    public function test_base_path_allows_normal_paths(): void
+    {
+        $path = base_path('src/Support');
+        $this->assertStringContainsString('src', $path);
+        $this->assertStringContainsString('Support', $path);
+    }
+
+    public function test_base_path_allows_dotfiles(): void
+    {
+        // Single dots in filenames should be fine
+        $path = base_path('.env');
+        $this->assertStringContainsString('.env', $path);
+    }
+
+    // ── New: resource_path helper ───────────────────────────
+
+    public function test_helper_resource_path(): void
+    {
+        $path = resource_path();
+        $this->assertStringContainsString('resources', $path);
+    }
+
+    public function test_helper_resource_path_with_subpath(): void
+    {
+        $path = resource_path('views/home.php');
+        $this->assertStringContainsString('resources', $path);
+        $this->assertStringContainsString('views', $path);
+    }
+
+    // ── New: ULID correctness ───────────────────────────────
+
+    public function test_str_ulid_length_and_charset(): void
+    {
+        $ulid = Str::ulid();
+        $this->assertSame(26, strlen($ulid));
+        // Verify all characters are valid Crockford's Base32
+        $this->assertMatchesRegularExpression('/^[0-9A-HJKMNP-TV-Z]{26}$/', $ulid);
+    }
+
+    public function test_str_ulid_uniqueness(): void
+    {
+        $ulids = [];
+        for ($i = 0; $i < 100; $i++) {
+            $ulids[] = Str::ulid();
+        }
+        $this->assertCount(100, array_unique($ulids));
+    }
+
+    // ── New: Str::slug intl fallback ────────────────────────
+
+    public function test_str_slug_basic(): void
+    {
+        $this->assertSame('hello-world', Str::slug('Hello World'));
+        $this->assertSame('hello-world-123', Str::slug('Hello World! 123'));
+    }
+
+    public function test_str_slug_custom_separator(): void
+    {
+        $this->assertSame('hello_world', Str::slug('Hello World', '_'));
+    }
 }
