@@ -1,246 +1,197 @@
-# MonkeysLegion Core
+# MonkeysLegion Core v2
 
-[![PHP Version](https://img.shields.io/badge/php-%5E8.4-blue)](https://www.php.net/)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+High-performance framework kernel with typed config, service providers, pipeline, and PHP 8.4 primitives for the MonkeysLegion framework.
 
-Core runtime package for the **MonkeysLegion PHP Framework**, providing essential components including routing, middleware, dependency injection integration, logging, and helper utilities.
+## Features
 
-## Overview
-
-MonkeysLegion-Core is a foundational library that provides:
-
-- **Route Loading**: Automatic controller discovery and route registration
-- **CORS Middleware**: Advanced PSR-15 CORS handling with flexible origin matching
-- **Smart Logging**: Environment-aware logging with PSR-3 compliance
-- **Helper Functions**: Common utilities for path resolution and debugging
-- **Service Provider Interface**: Standardized component registration
+| Feature | Status |
+|---|---|
+| **PHP 8.4 Native** | Property hooks, backed enums, `readonly` classes, `new` in initializers |
+| **3 Attributes** | `#[Provider]`, `#[BootAfter]`, `#[Config]` |
+| **Application Kernel** | Provider registration, topological boot ordering, lifecycle hooks |
+| **Generic Pipeline** | Immutable, zero-reflection, multi-pipe-type support |
+| **Exception Handler** | Environment-aware: full debug local, sanitized in production |
+| **Typed Config** | Dot-notation, O(1) cached lookups, type-safe getters |
+| **Arr Utilities** | dot/undot, flatten, pluck, groupBy, sortBy, first/last |
+| **Str Utilities** | camel/snake/kebab/studly, slug, UUID/ULID, mask, random (CSPRNG) |
+| **Benchmark** | hrtime precision, memory measurement, comparison |
+| **Once (Memoization)** | Rust-inspired call-once with keyed caching |
+| **PSR-20 Clock** | Testable system clock |
+| **20+ Helper Functions** | env, paths, retry, rescue, tap, value, blank/filled |
 
 ## Requirements
 
-- PHP 8.4 or higher
-- PSR-7 (HTTP Message)
-- PSR-11 (Container)
-- PSR-15 (HTTP Server Middleware)
-- PSR-17 (HTTP Factories)
+- **PHP 8.4** or higher
+- `psr/container` ^2.0
+- `psr/log` ^3.0
+- `psr/clock` ^1.0
 
 ## Installation
 
 ```bash
-composer require monkeyscloud/monkeyslegion-core
+composer require monkeyscloud/monkeyslegion-core:dev-2.0.0
 ```
-
-## Components
-
-### 1. Route Loader
-
-The [`RouteLoader`](src/Routing/RouteLoader.php) automatically scans your controller directory and registers routes defined via attributes.
-
-#### Usage
-
-```php
-use MonkeysLegion\Core\Routing\RouteLoader;
-
-$loader = new RouteLoader(
-    router: $router,
-    container: $container,
-    controllerDir: base_path('app/Controller'),
-    controllerNS: 'App\\Controller'
-);
-
-$loader->loadControllers();
-```
-
-**Features:**
-- Recursive directory scanning
-- Automatic class instantiation via DI container
-- Skips abstract classes
-- Integrates with `monkeyscloud/monkeyslegion-router`
-
----
-
-### 2. CORS Middleware
-
-The [`CorsMiddleware`](src/Middleware/CorsMiddleware.php) is a fully-featured PSR-15 middleware for handling Cross-Origin Resource Sharing.
-
-#### Usage
-
-```php
-use MonkeysLegion\Core\Middleware\CorsMiddleware;
-
-$cors = new CorsMiddleware(
-    allowOrigin: ['https://example.com', '/^https:\/\/.*\.example\.com$/'],
-    allowMethods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-    exposeHeaders: ['X-Total-Count'],
-    allowCredentials: true,
-    maxAge: 86400,
-    responseFactory: $responseFactory
-);
-```
-
-**Features:**
-- **Origin Matching**: Supports wildcards (`*`), exact strings, or PCRE patterns
-- **Pre-flight Handling**: Automatic OPTIONS request handling
-- **Credentials Support**: Configurable `Access-Control-Allow-Credentials`
-- **Cache Safety**: Adds `Vary: Origin` header
-- **Error Handling**: Catches exceptions and returns JSON error responses
-
----
-
-### 3. Helper Functions
-
-Defined in [`src/Support/helpers.php`](src/Support/helpers.php):
-
-#### `base_path(string $path = ''): string`
-
-Returns an absolute path relative to the project root.
-
-```php
-base_path();                    // → /full/path/to/project
-base_path('var/migrations');    // → /full/path/to/project/var/migrations
-base_path('config/app.php');    // → /full/path/to/project/config/app.php
-```
-
-**Configuration:**
-- Define `ML_BASE_PATH` constant to set the project root
-- Falls back to `dirname(__DIR__, 4)` for testing environments
-
-#### `dd(mixed ...$args): void`
-
-Dump variables and terminate script execution.
-
-```php
-dd($user, $order);  // Dumps both variables and exits
-```
-
-**Features:**
-- CLI-aware output (plain text vs HTML)
-- XSS-safe HTML output for web contexts
-- Handles arrays, objects, scalars, and null values
-- Exits with status code 1
-
----
-
-### 4. Provider Interface
-
-The [`ProviderInterface`](src/Provider/ProviderInterface.php) standardizes how components register themselves with the framework.
-
-```php
-interface ProviderInterface
-{
-    public static function register(string $root, ContainerBuilder $c): void;
-    public static function setLogger(FrameworkLoggerInterface $logger): void;
-}
-```
-
-Implement this interface in your service providers for consistent component registration.
-
----
 
 ## Architecture
 
-### PSR Compliance
-
-This package strictly adheres to PHP-FIG standards:
-
-- **PSR-7**: HTTP Message Interface (used in [`CorsMiddleware`](src/Middleware/CorsMiddleware.php))
-- **PSR-11**: Container Interface (used in [`RouteLoader`](src/Routing/RouteLoader.php))
-- **PSR-15**: HTTP Server Request Handlers ([`CorsMiddleware`](src/Middleware/CorsMiddleware.php))
-- **PSR-17**: HTTP Factories ([`CorsMiddleware`](src/Middleware/CorsMiddleware.php))
-
-### Type Safety
-
-- Strict type declarations (`declare(strict_types=1)`)
-- Full PHP 8.4 type hints
-- PHPStan level max compliance
-
----
-
-## Development
-
-### Static Analysis
-
-```bash
-vendor/bin/phpstan analyse
+```
+src/
+├── Attribute/          # #[Provider], #[BootAfter], #[Config]
+├── Clock/              # PSR-20 SystemClock
+├── Config/             # Typed ConfigRepository with dot-notation
+├── Contract/           # Bootable, Deferrable, ExceptionRendererInterface
+├── Environment/        # Backed enum + detector
+├── Exception/          # Handler + HttpException with factories
+├── Kernel/             # Application kernel with lifecycle hooks
+├── Pipeline/           # Generic pipeline (Laravel parity)
+├── Provider/           # ServiceProviderInterface + AbstractProvider
+└── Support/            # Arr, Str, Benchmark, Once, helpers.php
 ```
 
-Configuration: [phpstan.neon](phpstan.neon)
+## Quick Start
 
-### Code Quality Standards
-
-- **Strict Types**: All files use `declare(strict_types=1)`
-- **Final Classes**: Components use `final` to prevent inheritance where appropriate
-- **Type Hints**: Full parameter and return type declarations
-- **PHPDoc**: Comprehensive documentation blocks
-
----
-
-## Integration Example
+### Kernel Boot
 
 ```php
-use MonkeysLegion\Core\Routing\RouteLoader;
-use MonkeysLegion\Core\Middleware\CorsMiddleware;
-use MonkeysLegion\Core\Logger\MonkeyLogger;
+use MonkeysLegion\Core\Kernel\Kernel;
+use MonkeysLegion\Core\Environment\Environment;
 
-// Set up logger
-$logger = new MonkeyLogger($psrLogger, $_ENV['APP_ENV']);
-
-// Configure CORS
-$cors = new CorsMiddleware(
-    allowOrigin: ['https://app.example.com'],
-    allowMethods: ['GET', 'POST', 'PATCH', 'DELETE'],
-    allowCredentials: true
+$kernel = new Kernel(
+    container: $container,
+    environment: Environment::Production,
 );
 
-// Load routes
-$routeLoader = new RouteLoader(
-    $router,
-    $container,
-    base_path('app/Controller'),
-    'App\\Controller'
-);
-$routeLoader->loadControllers();
+$kernel->register(new DatabaseProvider());
+$kernel->register(new AuthProvider());
+$kernel->boot();
 
-// Add middleware to pipeline
-$middleware->add($cors);
+// ... handle request ...
+
+$kernel->terminate();
 ```
 
----
+### Service Providers
 
-## Dependencies
+```php
+use MonkeysLegion\Core\Attribute\Provider;
+use MonkeysLegion\Core\Attribute\BootAfter;
+use MonkeysLegion\Core\Contract\Bootable;
+use MonkeysLegion\Core\Provider\AbstractProvider;
 
-### Required
+#[Provider(priority: 10)]
+#[BootAfter(DatabaseProvider::class)]
+final class AuthProvider extends AbstractProvider implements Bootable
+{
+    public function register(): void
+    {
+        // Register bindings
+    }
 
-- `php`: ^8.4
-- `psr/container`: ^2.0
-- `psr/log`: ^3.0
-- `psr/http-message`: ^2.0
-- `psr/http-server-handler`: ^1.0
-- `psr/http-server-middleware`: ^1.0
-- `psr/http-factory`: ^1.1
-- `monkeyscloud/monkeyslegion-http`: ^1.0
-- `monkeyscloud/monkeyslegion-router`: ^1.0
-- `monkeyscloud/monkeyslegion-di`: ^1.0
+    public function boot(): void
+    {
+        // Boot after DatabaseProvider
+    }
+}
+```
 
-### Development
+### Pipeline
 
-- `phpstan/phpstan`: ^2.1
+```php
+use MonkeysLegion\Core\Pipeline\Pipeline;
 
----
+$result = (new Pipeline())
+    ->send($request)
+    ->through([
+        TrimStrings::class,
+        ValidateInput::class,
+        AuthenticateUser::class,
+    ])
+    ->then(fn($req) => $handler->handle($req));
+```
+
+### Config
+
+```php
+use MonkeysLegion\Core\Config\ConfigRepository;
+
+$config = new ConfigRepository([
+    'database' => [
+        'host' => 'localhost',
+        'port' => 5432,
+    ],
+]);
+
+$host = $config->string('database.host');       // 'localhost'
+$port = $config->int('database.port');           // 5432
+$ssl  = $config->bool('database.ssl', false);    // false
+```
+
+### Exception Handling
+
+```php
+use MonkeysLegion\Core\Exception\Handler;
+use MonkeysLegion\Core\Exception\HttpException;
+
+// In production: generic messages, no stack traces
+$handler = new Handler(Environment::Production, $logger);
+
+try {
+    throw HttpException::notFound('User not found');
+} catch (\Throwable $e) {
+    $handler->report($e);
+    $response = $handler->render($e);
+    // { error: true, status: 404, message: "User not found" }
+}
+```
+
+### Utilities
+
+```php
+use MonkeysLegion\Core\Support\{Arr, Str, Benchmark, Once};
+
+// Arrays
+Arr::get($data, 'user.address.city', 'Unknown');
+Arr::dot(['a' => ['b' => 1]]);  // ['a.b' => 1]
+
+// Strings
+Str::uuid();                    // 'f47ac10b-58cc-...'
+Str::slug('Hello World!');      // 'hello-world'
+Str::mask('secret123', '*', 3); // 'sec******'
+Str::random(32);                // CSPRNG-backed
+
+// Benchmark
+$ms = Benchmark::measure(fn() => expensiveQuery(), iterations: 100);
+
+// Memoization
+$value = Once::callKeyed('config', fn() => loadConfig());
+```
+
+## Performance & Security
+
+### Performance
+- **ConfigRepository**: O(1) cached dot-notation lookups after first access
+- **Pipeline**: Zero reflection, no container resolution overhead
+- **Kernel**: Topological sort (Kahn's algorithm) runs once during boot
+- **Benchmark**: hrtime() for nanosecond precision
+- **Arr/Str**: Static methods with zero state, minimal allocations
+
+### Security
+- **Exception Handler**: Never exposes stack traces, file paths, or internal details in production
+- **Str::random()**: CSPRNG-backed via random_int()
+- **Str::uuid()/ulid()**: CSPRNG-backed via random_bytes()
+- **env()**: Only reads from server environment, never from user input
+- **HttpException**: Client-safe messages; internal details via $previous
+- **Kernel::terminate()**: Catches all exceptions to prevent information leaks
+- **Str::mask()**: Safely hides sensitive data (tokens, API keys)
+
+## Testing
+
+```bash
+vendor/bin/phpunit --testdox
+```
+
+**114 tests, 238 assertions** — 100% passing.
 
 ## License
 
 MIT License. See LICENSE file for details.
-
-## Contributing
-
-Contributions are welcome! Please ensure:
-
-1. Code follows PSR-12 coding standards
-2. All code passes PHPStan level max
-3. New features include appropriate documentation
-4. Type hints are comprehensive
-
-## Support
-
-For issues, questions, or contributions, please visit the project repository.
