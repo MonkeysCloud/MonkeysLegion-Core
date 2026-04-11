@@ -95,12 +95,9 @@ final class ConfigRepository implements ConfigRepositoryInterface
 
     public function set(string $key, mixed $value): void
     {
-        // Invalidate cache for this key and any parent keys
-        foreach (array_keys($this->cache) as $cached) {
-            if (str_starts_with((string) $cached, $key . '.') || $cached === $key) {
-                unset($this->cache[$cached]);
-            }
-        }
+        // Invalidate cache: this key, any child keys, AND any parent keys
+        // SECURITY: Stale parent cache entries could return outdated nested data
+        $this->invalidateCacheFor($key);
 
         if (!str_contains($key, '.')) {
             $this->items[$key] = $value;
@@ -109,9 +106,10 @@ final class ConfigRepository implements ConfigRepositoryInterface
 
         $segments = explode('.', $key);
         $current  = &$this->items;
+        $count    = count($segments);
 
         foreach ($segments as $i => $segment) {
-            if ($i === count($segments) - 1) {
+            if ($i === $count - 1) {
                 $current[$segment] = $value;
             } else {
                 if (!isset($current[$segment]) || !is_array($current[$segment])) {
@@ -119,6 +117,34 @@ final class ConfigRepository implements ConfigRepositoryInterface
                 }
                 $current = &$current[$segment];
             }
+        }
+    }
+
+    /**
+     * Remove a configuration value using dot-notation.
+     */
+    public function forget(string $key): void
+    {
+        $this->invalidateCacheFor($key);
+
+        if (!str_contains($key, '.')) {
+            unset($this->items[$key]);
+            return;
+        }
+
+        $segments = explode('.', $key);
+        $current  = &$this->items;
+        $count    = count($segments);
+
+        foreach ($segments as $i => $segment) {
+            if ($i === $count - 1) {
+                unset($current[$segment]);
+                return;
+            }
+            if (!isset($current[$segment]) || !is_array($current[$segment])) {
+                return;
+            }
+            $current = &$current[$segment];
         }
     }
 
@@ -185,5 +211,47 @@ final class ConfigRepository implements ConfigRepositoryInterface
     {
         $this->items = array_replace_recursive($this->items, $items);
         $this->cache = []; // Invalidate entire cache
+    }
+
+    // ── Cache Invalidation ────────────────────────────────────
+
+    /**
+     * Invalidate cache entries affected by a key change.
+     *
+     * SECURITY: Invalidates the key itself, all child keys (prefix.*)
+     * AND all parent keys (which may contain stale nested data).
+     *
+     * PERFORMANCE: Single pass over cache keys with early string checks.
+     */
+    private function invalidateCacheFor(string $key): void
+    {
+        // Build parent key prefixes to invalidate
+        $parentPrefixes = [];
+        if (str_contains($key, '.')) {
+            $parts = explode('.', $key);
+            $prefix = '';
+            for ($i = 0, $count = count($parts) - 1; $i < $count; $i++) {
+                $prefix = $prefix === '' ? $parts[$i] : $prefix . '.' . $parts[$i];
+                $parentPrefixes[] = $prefix;
+            }
+        }
+
+        foreach (array_keys($this->cache) as $cached) {
+            $cachedStr = (string) $cached;
+
+            // Exact match or child key
+            if ($cachedStr === $key || str_starts_with($cachedStr, $key . '.')) {
+                unset($this->cache[$cached]);
+                continue;
+            }
+
+            // Parent key (stale nested data)
+            foreach ($parentPrefixes as $parentKey) {
+                if ($cachedStr === $parentKey) {
+                    unset($this->cache[$cached]);
+                    break;
+                }
+            }
+        }
     }
 }

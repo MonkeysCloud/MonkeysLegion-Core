@@ -52,9 +52,10 @@ final class Arr
     {
         $keys    = explode('.', $key);
         $current = &$array;
+        $count   = count($keys);
 
         foreach ($keys as $i => $segment) {
-            if ($i === count($keys) - 1) {
+            if ($i === $count - 1) {
                 $current[$segment] = $value;
             } else {
                 if (!isset($current[$segment]) || !is_array($current[$segment])) {
@@ -95,9 +96,10 @@ final class Arr
     {
         $keys    = explode('.', $key);
         $current = &$array;
+        $count   = count($keys);
 
         foreach ($keys as $i => $segment) {
-            if ($i === count($keys) - 1) {
+            if ($i === $count - 1) {
                 unset($current[$segment]);
                 return;
             }

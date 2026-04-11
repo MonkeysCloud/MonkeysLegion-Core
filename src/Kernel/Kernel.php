@@ -245,9 +245,13 @@ final class Kernel
     /**
      * Sort providers respecting #[BootAfter] attributes.
      *
-     * PERFORMANCE: Runs once during boot — O(V + E) Kahn's algorithm.
+     * PERFORMANCE: Runs once during boot — O(V + E) Kahn's algorithm
+     * using SplQueue for O(1) dequeue instead of O(N) array_shift.
+     *
+     * SECURITY: Throws on cyclic dependencies to prevent undefined boot order.
      *
      * @return list<ServiceProviderInterface>
+     * @throws \RuntimeException If a dependency cycle is detected.
      */
     private function topologicalSort(): array
     {
@@ -284,35 +288,34 @@ final class Kernel
             }
         }
 
-        // Kahn's algorithm
-        $queue  = [];
+        // Kahn's algorithm with SplQueue for O(1) dequeue
+        $queue  = new \SplQueue();
         $result = [];
 
         foreach ($inDegree as $class => $degree) {
             if ($degree === 0) {
-                $queue[] = $class;
+                $queue->enqueue($class);
             }
         }
 
-        while ($queue !== []) {
-            $current  = array_shift($queue);
+        while (!$queue->isEmpty()) {
+            $current  = $queue->dequeue();
             $result[] = $byClass[$current];
 
             foreach ($edges[$current] as $neighbor) {
                 $inDegree[$neighbor]--;
                 if ($inDegree[$neighbor] === 0) {
-                    $queue[] = $neighbor;
+                    $queue->enqueue($neighbor);
                 }
             }
         }
 
-        // If we couldn't sort all (cycle), append remaining
+        // Detect cycles: if not all providers were sorted, there's a cycle
         if (count($result) < count($byClass)) {
-            foreach ($byClass as $class => $provider) {
-                if (!in_array($provider, $result, true)) {
-                    $result[] = $provider;
-                }
-            }
+            $unsorted = array_diff(array_keys($byClass), array_map(fn($p) => $p::class, $result));
+            throw new \RuntimeException(
+                'Circular boot dependency detected among providers: ' . implode(', ', $unsorted),
+            );
         }
 
         return $result;

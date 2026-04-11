@@ -38,6 +38,11 @@ interface ConfigRepositoryInterface
     public function set(string $key, mixed $value): void;
 
     /**
+     * Remove a configuration value.
+     */
+    public function forget(string $key): void;
+
+    /**
      * Get all configuration as a flat array.
      *
      * @return array<string, mixed>
