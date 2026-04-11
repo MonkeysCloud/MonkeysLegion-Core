@@ -19,6 +19,7 @@ if (!function_exists('base_path')) {
      * Return an absolute path relative to the project root.
      *
      * SECURITY: Uses ML_BASE_PATH constant — cannot be modified at runtime.
+     * Rejects path traversal sequences to prevent directory escape.
      */
     function base_path(string $path = ''): string
     {
@@ -31,9 +32,17 @@ if (!function_exists('base_path')) {
             $root = dirname(__DIR__, 3);
         }
 
-        return $path !== ''
-            ? $root . DIRECTORY_SEPARATOR . ltrim($path, '/\\')
-            : $root;
+        if ($path === '') {
+            return $root;
+        }
+
+        // SECURITY: Prevent path traversal
+        $normalized = str_replace('\\', '/', $path);
+        if (preg_match('#(^|/)\.\.(/|$)#', $normalized)) {
+            throw new \InvalidArgumentException('Path traversal detected: directory traversal sequences are not allowed.');
+        }
+
+        return $root . DIRECTORY_SEPARATOR . ltrim($path, '/\\');
     }
 }
 
@@ -90,6 +99,20 @@ if (!function_exists('public_path')) {
         return $path !== ''
             ? $publicPath . DIRECTORY_SEPARATOR . ltrim($path, '/\\')
             : $publicPath;
+    }
+}
+
+if (!function_exists('resource_path')) {
+    /**
+     * Return an absolute path relative to the resources directory.
+     */
+    function resource_path(string $path = ''): string
+    {
+        $resourcePath = base_path('resources');
+
+        return $path !== ''
+            ? $resourcePath . DIRECTORY_SEPARATOR . ltrim($path, '/\\')
+            : $resourcePath;
     }
 }
 

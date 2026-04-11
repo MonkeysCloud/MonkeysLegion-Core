@@ -22,6 +22,22 @@ namespace MonkeysLegion\Core\Support;
  */
 final class Str
 {
+    /** @var array<string, string> Common Latin character transliteration map */
+    private const ASCII_MAP = [
+        'À' => 'A', 'Á' => 'A', 'Â' => 'A', 'Ã' => 'A', 'Ä' => 'Ae', 'Å' => 'A',
+        'Æ' => 'AE', 'Ç' => 'C', 'È' => 'E', 'É' => 'E', 'Ê' => 'E', 'Ë' => 'E',
+        'Ì' => 'I', 'Í' => 'I', 'Î' => 'I', 'Ï' => 'I', 'Ð' => 'D', 'Ñ' => 'N',
+        'Ò' => 'O', 'Ó' => 'O', 'Ô' => 'O', 'Õ' => 'O', 'Ö' => 'Oe', 'Ø' => 'O',
+        'Ù' => 'U', 'Ú' => 'U', 'Û' => 'U', 'Ü' => 'Ue', 'Ý' => 'Y', 'Þ' => 'Th',
+        'ß' => 'ss',
+        'à' => 'a', 'á' => 'a', 'â' => 'a', 'ã' => 'a', 'ä' => 'ae', 'å' => 'a',
+        'æ' => 'ae', 'ç' => 'c', 'è' => 'e', 'é' => 'e', 'ê' => 'e', 'ë' => 'e',
+        'ì' => 'i', 'í' => 'i', 'î' => 'i', 'ï' => 'i', 'ð' => 'd', 'ñ' => 'n',
+        'ò' => 'o', 'ó' => 'o', 'ô' => 'o', 'õ' => 'o', 'ö' => 'oe', 'ø' => 'o',
+        'ù' => 'u', 'ú' => 'u', 'û' => 'u', 'ü' => 'ue', 'ý' => 'y', 'þ' => 'th',
+        'ÿ' => 'y',
+    ];
+
     /**
      * Convert a string to camelCase.
      */
@@ -59,11 +75,18 @@ final class Str
 
     /**
      * Generate a URL-safe slug.
+     *
+     * Uses intl transliterator when available, falls back to basic ASCII conversion.
      */
     public static function slug(string $value, string $separator = '-'): string
     {
-        // Transliterate to ASCII
-        $value = transliterator_transliterate('Any-Latin; Latin-ASCII', $value) ?? $value;
+        // Transliterate to ASCII — use intl if available, else basic fallback
+        if (function_exists('transliterator_transliterate')) {
+            $value = transliterator_transliterate('Any-Latin; Latin-ASCII', $value) ?? $value;
+        } else {
+            // Basic ASCII transliteration fallback
+            $value = self::asciiTransliterate($value);
+        }
 
         // Remove non-alphanumeric characters
         $value = preg_replace('/[^a-zA-Z0-9\s]/', '', $value) ?? $value;
@@ -226,6 +249,7 @@ final class Str
      * Generate a ULID (Universally Unique Lexicographically Sortable Identifier).
      *
      * SECURITY: Uses random_bytes() (CSPRNG).
+     * Generates 80 bits of randomness per the ULID spec.
      */
     public static function ulid(): string
     {
@@ -233,20 +257,39 @@ final class Str
         $chars   = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'; // Crockford's Base32
         $result  = '';
 
-        // Encode timestamp (first 10 chars)
+        // Encode timestamp (first 10 chars) — 48-bit millisecond precision
         for ($i = 9; $i >= 0; $i--) {
             $result = $chars[$time % 32] . $result;
             $time   = intdiv($time, 32);
         }
 
-        // Encode randomness (last 16 chars)
+        // Encode randomness (last 16 chars) — 80 bits from CSPRNG
+        // Proper 80-bit to 16 Base32 chars conversion
         $random = random_bytes(10);
-        for ($i = 0; $i < 16; $i++) {
-            $byte    = ord($random[(int) ($i / 2)]);
-            $result .= $chars[($i % 2 === 0) ? ($byte >> 3) : ($byte & 0x1f)];
+        $bytes = unpack('C*', $random);
+
+        // Convert 10 bytes (80 bits) into 16 Base32 characters (5 bits each = 80 bits)
+        // Process in groups: 5 bytes → 8 characters for perfect bit alignment
+        $randomPart = '';
+        for ($group = 0; $group < 2; $group++) {
+            $offset = $group * 5;
+            $b0 = $bytes[$offset + 1]; // unpack is 1-indexed
+            $b1 = $bytes[$offset + 2];
+            $b2 = $bytes[$offset + 3];
+            $b3 = $bytes[$offset + 4];
+            $b4 = $bytes[$offset + 5];
+
+            $randomPart .= $chars[($b0 >> 3) & 0x1f];
+            $randomPart .= $chars[(($b0 << 2) | ($b1 >> 6)) & 0x1f];
+            $randomPart .= $chars[($b1 >> 1) & 0x1f];
+            $randomPart .= $chars[(($b1 << 4) | ($b2 >> 4)) & 0x1f];
+            $randomPart .= $chars[(($b2 << 1) | ($b3 >> 7)) & 0x1f];
+            $randomPart .= $chars[($b3 >> 2) & 0x1f];
+            $randomPart .= $chars[(($b3 << 3) | ($b4 >> 5)) & 0x1f];
+            $randomPart .= $chars[$b4 & 0x1f];
         }
 
-        return $result;
+        return $result . $randomPart;
     }
 
     /**
@@ -373,5 +416,15 @@ final class Str
         }
 
         return substr_replace($subject, $replace, $pos, strlen($search));
+    }
+
+    /**
+     * Basic ASCII transliteration fallback when intl extension is not available.
+     *
+     * Covers common Latin accented characters.
+     */
+    private static function asciiTransliterate(string $value): string
+    {
+        return strtr($value, self::ASCII_MAP);
     }
 }
