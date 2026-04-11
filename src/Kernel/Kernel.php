@@ -312,9 +312,13 @@ final class Kernel
 
         // Detect cycles: if not all providers were sorted, there's a cycle
         if (count($result) < count($byClass)) {
-            $unsorted = array_diff(array_keys($byClass), array_map(fn($p) => $p::class, $result));
+            $sorted = [];
+            foreach ($result as $p) {
+                $sorted[$p::class] = true;
+            }
+            $unsorted = array_diff_key($byClass, $sorted);
             throw new \RuntimeException(
-                'Circular boot dependency detected among providers: ' . implode(', ', $unsorted),
+                'Circular boot dependency detected among providers: ' . implode(', ', array_keys($unsorted)),
             );
         }
 

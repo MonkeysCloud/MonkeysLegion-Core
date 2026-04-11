@@ -22,6 +22,22 @@ namespace MonkeysLegion\Core\Support;
  */
 final class Str
 {
+    /** @var array<string, string> Common Latin character transliteration map */
+    private const ASCII_MAP = [
+        'À' => 'A', 'Á' => 'A', 'Â' => 'A', 'Ã' => 'A', 'Ä' => 'Ae', 'Å' => 'A',
+        'Æ' => 'AE', 'Ç' => 'C', 'È' => 'E', 'É' => 'E', 'Ê' => 'E', 'Ë' => 'E',
+        'Ì' => 'I', 'Í' => 'I', 'Î' => 'I', 'Ï' => 'I', 'Ð' => 'D', 'Ñ' => 'N',
+        'Ò' => 'O', 'Ó' => 'O', 'Ô' => 'O', 'Õ' => 'O', 'Ö' => 'Oe', 'Ø' => 'O',
+        'Ù' => 'U', 'Ú' => 'U', 'Û' => 'U', 'Ü' => 'Ue', 'Ý' => 'Y', 'Þ' => 'Th',
+        'ß' => 'ss',
+        'à' => 'a', 'á' => 'a', 'â' => 'a', 'ã' => 'a', 'ä' => 'ae', 'å' => 'a',
+        'æ' => 'ae', 'ç' => 'c', 'è' => 'e', 'é' => 'e', 'ê' => 'e', 'ë' => 'e',
+        'ì' => 'i', 'í' => 'i', 'î' => 'i', 'ï' => 'i', 'ð' => 'd', 'ñ' => 'n',
+        'ò' => 'o', 'ó' => 'o', 'ô' => 'o', 'õ' => 'o', 'ö' => 'oe', 'ø' => 'o',
+        'ù' => 'u', 'ú' => 'u', 'û' => 'u', 'ü' => 'ue', 'ý' => 'y', 'þ' => 'th',
+        'ÿ' => 'y',
+    ];
+
     /**
      * Convert a string to camelCase.
      */
@@ -250,18 +266,18 @@ final class Str
         // Encode randomness (last 16 chars) — 80 bits from CSPRNG
         // Proper 80-bit to 16 Base32 chars conversion
         $random = random_bytes(10);
-        $bytes = array_values(array_map('ord', str_split($random)));
+        $bytes = unpack('C*', $random);
 
         // Convert 10 bytes (80 bits) into 16 Base32 characters (5 bits each = 80 bits)
         // Process in groups: 5 bytes → 8 characters for perfect bit alignment
         $randomPart = '';
         for ($group = 0; $group < 2; $group++) {
             $offset = $group * 5;
-            $b0 = $bytes[$offset];
-            $b1 = $bytes[$offset + 1];
-            $b2 = $bytes[$offset + 2];
-            $b3 = $bytes[$offset + 3];
-            $b4 = $bytes[$offset + 4];
+            $b0 = $bytes[$offset + 1]; // unpack is 1-indexed
+            $b1 = $bytes[$offset + 2];
+            $b2 = $bytes[$offset + 3];
+            $b3 = $bytes[$offset + 4];
+            $b4 = $bytes[$offset + 5];
 
             $randomPart .= $chars[($b0 >> 3) & 0x1f];
             $randomPart .= $chars[(($b0 << 2) | ($b1 >> 6)) & 0x1f];
@@ -409,21 +425,6 @@ final class Str
      */
     private static function asciiTransliterate(string $value): string
     {
-        static $map = [
-            'À' => 'A', 'Á' => 'A', 'Â' => 'A', 'Ã' => 'A', 'Ä' => 'Ae', 'Å' => 'A',
-            'Æ' => 'AE', 'Ç' => 'C', 'È' => 'E', 'É' => 'E', 'Ê' => 'E', 'Ë' => 'E',
-            'Ì' => 'I', 'Í' => 'I', 'Î' => 'I', 'Ï' => 'I', 'Ð' => 'D', 'Ñ' => 'N',
-            'Ò' => 'O', 'Ó' => 'O', 'Ô' => 'O', 'Õ' => 'O', 'Ö' => 'Oe', 'Ø' => 'O',
-            'Ù' => 'U', 'Ú' => 'U', 'Û' => 'U', 'Ü' => 'Ue', 'Ý' => 'Y', 'Þ' => 'Th',
-            'ß' => 'ss',
-            'à' => 'a', 'á' => 'a', 'â' => 'a', 'ã' => 'a', 'ä' => 'ae', 'å' => 'a',
-            'æ' => 'ae', 'ç' => 'c', 'è' => 'e', 'é' => 'e', 'ê' => 'e', 'ë' => 'e',
-            'ì' => 'i', 'í' => 'i', 'î' => 'i', 'ï' => 'i', 'ð' => 'd', 'ñ' => 'n',
-            'ò' => 'o', 'ó' => 'o', 'ô' => 'o', 'õ' => 'o', 'ö' => 'oe', 'ø' => 'o',
-            'ù' => 'u', 'ú' => 'u', 'û' => 'u', 'ü' => 'ue', 'ý' => 'y', 'þ' => 'th',
-            'ÿ' => 'y',
-        ];
-
-        return strtr($value, $map);
+        return strtr($value, self::ASCII_MAP);
     }
 }
