@@ -6,7 +6,7 @@ declare(strict_types=1);
  * MonkeysLegion Core v2
  *
  * @package   MonkeysLegion\Core
- * @author    MonkeysCloud <jorge@monkeyscloud.com>
+ * @author    MonkeysCloud <jorge@monkeys.cloud>
  * @license   MIT
  *
  * @requires  PHP 8.4
