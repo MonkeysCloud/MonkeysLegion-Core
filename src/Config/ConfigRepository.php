@@ -52,9 +52,13 @@ final class ConfigRepository implements ConfigRepositoryInterface
             return $this->cache[$key];
         }
 
-        // Top-level key — no dot notation needed
+        // Top-level key — cache it too so parent invalidation works correctly
         if (!str_contains($key, '.')) {
-            return $this->items[$key] ?? $default;
+            if (!array_key_exists($key, $this->items)) {
+                return $default;
+            }
+            $this->cache[$key] = $this->items[$key];
+            return $this->cache[$key];
         }
 
         // Walk the dot-notation path

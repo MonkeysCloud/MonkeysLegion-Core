@@ -293,9 +293,16 @@ final class Str
     }
 
     /**
-     * Mask a string, showing only the first N and last N characters.
+     * Mask a portion of a string starting at $start for $length characters.
+     *
+     * If $length is null, masks from $start to the end of the string.
      *
      * SECURITY: Useful for displaying partial tokens, API keys, etc.
+     *
+     * @param string  $value     The string to mask.
+     * @param string  $character The masking character.
+     * @param int     $start     Position to start masking (0-indexed).
+     * @param int|null $length   Number of characters to mask (null = rest of string).
      */
     public static function mask(string $value, string $character = '*', int $start = 0, ?int $length = null): string
     {

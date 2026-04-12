@@ -29,7 +29,7 @@ if (!function_exists('base_path')) {
             }
             $root = ML_BASE_PATH;
         } else {
-            $root = dirname(__DIR__, 3);
+            $root = dirname(__DIR__, 2);
         }
 
         if ($path === '') {
@@ -242,7 +242,7 @@ if (!function_exists('retry')) {
             $attempts++;
 
             try {
-                return $callback($attempts);
+                return $callback();
             } catch (\Throwable $e) {
                 $lastException = $e;
 
@@ -266,15 +266,17 @@ if (!function_exists('rescue')) {
      *
      * SECURITY: Exceptions are swallowed — use only for non-critical operations.
      */
-    function rescue(callable $callback, mixed $rescue = null, bool|callable $report = true): mixed
+    function rescue(callable $callback, mixed $rescue = null, bool|callable $report = false): mixed
     {
         try {
             return $callback();
         } catch (\Throwable $e) {
             if ($report === true || (is_callable($report) && $report($e))) {
-                // In a full app, this would go to the exception handler.
-                // For now, trigger a user notice.
-                trigger_error($e->getMessage(), E_USER_NOTICE);
+                // SECURITY: Emit generic notice — never expose raw exception message
+                trigger_error(
+                    'rescue() caught ' . $e::class . ' in ' . class_basename($e::class),
+                    E_USER_NOTICE,
+                );
             }
 
             return value($rescue, $e);

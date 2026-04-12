@@ -135,6 +135,11 @@ final class Kernel
         $provider->register();
         $this->providers[] = $provider;
 
+        // If kernel already booted, boot the deferred provider immediately
+        if ($this->_booted && $provider instanceof Bootable) {
+            $provider->boot();
+        }
+
         // Remove from deferred map
         unset($this->deferredProviders[$providerClass]);
         $this->deferredMap = array_filter(
@@ -255,10 +260,17 @@ final class Kernel
      */
     private function topologicalSort(): array
     {
+        // Use class name as key but append object ID to handle
+        // multiple instances of the same provider class.
         /** @var array<string, ServiceProviderInterface> */
         $byClass = [];
+        /** @var array<string, string> Map class FQCN → canonical key for BootAfter resolution */
+        $classToKey = [];
         foreach ($this->providers as $p) {
-            $byClass[$p::class] = $p;
+            $key = $p::class . '#' . spl_object_id($p);
+            $byClass[$key] = $p;
+            // First instance wins for BootAfter dependency resolution
+            $classToKey[$p::class] ??= $key;
         }
 
         // Build adjacency list from #[BootAfter]
@@ -267,23 +279,25 @@ final class Kernel
         /** @var array<string, int> $inDegree */
         $inDegree = [];
 
-        foreach ($byClass as $class => $_) {
-            $edges[$class]    ??= [];
-            $inDegree[$class] ??= 0;
+        foreach ($byClass as $key => $_) {
+            $edges[$key]    ??= [];
+            $inDegree[$key] ??= 0;
         }
 
-        foreach ($byClass as $class => $_) {
-            $ref  = new \ReflectionClass($class);
+        foreach ($byClass as $key => $provider) {
+            $ref   = new \ReflectionClass($provider);
             $attrs = $ref->getAttributes(BootAfter::class);
 
             foreach ($attrs as $attr) {
                 /** @var BootAfter $bootAfter */
                 $bootAfter = $attr->newInstance();
-                $dep       = $bootAfter->provider;
+                $depClass  = $bootAfter->provider;
 
-                if (isset($byClass[$dep])) {
-                    $edges[$dep][] = $class;
-                    $inDegree[$class]++;
+                // Resolve class FQCN to canonical key
+                $depKey = $classToKey[$depClass] ?? null;
+                if ($depKey !== null && isset($byClass[$depKey])) {
+                    $edges[$depKey][] = $key;
+                    $inDegree[$key]++;
                 }
             }
         }

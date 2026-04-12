@@ -108,6 +108,27 @@ class DeferredProvider extends AbstractProvider implements Deferrable
     }
 }
 
+class DeferredBootableProvider extends AbstractProvider implements Deferrable, Bootable
+{
+    public static bool $registered = false;
+    public static bool $booted     = false;
+
+    public function register(): void
+    {
+        self::$registered = true;
+    }
+
+    public function boot(): void
+    {
+        self::$booted = true;
+    }
+
+    public function provides(): array
+    {
+        return ['deferred.bootable.service'];
+    }
+}
+
 // ── Test Pipeline Pipes ──────────────────────────────────────
 
 class UpperCasePipe
@@ -141,7 +162,9 @@ final class CoreV2Test extends TestCase
         DependentProvider::$booted     = false;
         DependentProvider::$bootOrder  = 0;
         DependentProvider::resetCounter();
-        DeferredProvider::$registered  = false;
+        DeferredProvider::$registered          = false;
+        DeferredBootableProvider::$registered   = false;
+        DeferredBootableProvider::$booted       = false;
         Once::flush();
     }
 
@@ -1274,5 +1297,45 @@ final class CoreV2Test extends TestCase
     public function test_str_slug_custom_separator(): void
     {
         $this->assertSame('hello_world', Str::slug('Hello World', '_'));
+    }
+
+    // ── New: Deferred provider boots after kernel booted ────
+
+    public function test_deferred_provider_boots_after_kernel_booted(): void
+    {
+        $kernel = new Kernel(environment: Environment::Testing);
+        $deferred = new DeferredBootableProvider();
+
+        $kernel->register($deferred);
+        $kernel->boot(); // Kernel is now booted
+
+        // Provider is deferred — not yet registered or booted
+        $this->assertFalse(DeferredBootableProvider::$registered);
+        $this->assertFalse(DeferredBootableProvider::$booted);
+
+        // Trigger deferred loading AFTER boot
+        $kernel->registerDeferredFor('deferred.bootable.service');
+
+        // Must be both registered AND booted
+        $this->assertTrue(DeferredBootableProvider::$registered);
+        $this->assertTrue(DeferredBootableProvider::$booted);
+    }
+
+    // ── New: Config top-level cache works for parent invalidation ──
+
+    public function test_config_top_level_cache_and_parent_invalidation(): void
+    {
+        $config = new ConfigRepository(['db' => ['host' => 'localhost']]);
+
+        // Read top-level key to populate cache
+        $dbAll = $config->get('db');
+        $this->assertSame(['host' => 'localhost'], $dbAll);
+
+        // Mutate a child key
+        $config->set('db.host', 'newhost');
+
+        // The parent 'db' cache should be invalidated and return fresh data
+        $dbAll = $config->get('db');
+        $this->assertSame(['host' => 'newhost'], $dbAll);
     }
 }

@@ -19,26 +19,33 @@ namespace MonkeysLegion\Core\Support;
  *
  * Inspired by Rust's `std::sync::Once` and Laravel's `once()`.
  *
- * PERFORMANCE: Uses a WeakMap when possible to prevent memory leaks
- * from object-bound closures. Scalar-keyed results use a static cache.
+ * PERFORMANCE: Uses a static array cache keyed by the caller's file and line.
  *
  * Usage:
  *   $value = Once::call(fn() => expensiveComputation());
- *   // Subsequent calls return the cached result.
+ *   // Subsequent calls from the same call site return the cached result.
+ *
+ * NOTE: Once::call() uses the caller's file:line as cache key. For
+ * per-instance or per-context caching, use Once::callKeyed() instead.
  */
 final class Once
 {
-    /** @var array<string, mixed> Static cache for scalar-keyed results */
+    /** @var array<string, mixed> Static cache for keyed results */
     private static array $cache = [];
 
     /**
-     * Execute a callback once and cache the result.
+     * Execute a callback once per call site and cache the result.
      *
-     * Uses the call site (file + line) as the cache key for uniqueness.
+     * Uses the caller's file + line (frame[1]) as the cache key.
+     *
+     * CAVEAT: Different object instances calling from the same line share
+     * the cache. For per-instance memoization, use callKeyed() with a
+     * unique key (e.g., spl_object_id).
      */
     public static function call(callable $callback): mixed
     {
-        $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1)[0] ?? [];
+        // Frame 0 = Once::call(), Frame 1 = the actual caller
+        $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1] ?? [];
         $key   = ($trace['file'] ?? '') . ':' . ($trace['line'] ?? '0');
 
         if (array_key_exists($key, self::$cache)) {
