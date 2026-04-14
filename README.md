@@ -11,6 +11,7 @@ High-performance framework kernel with typed config, service providers, pipeline
 | **Application Kernel** | Provider registration, topological boot ordering, lifecycle hooks |
 | **Generic Pipeline** | Immutable, zero-reflection, multi-pipe-type support |
 | **Exception Handler** | Environment-aware: full debug local, sanitized in production |
+| **Error Rendering** | Error Renderer contract + implementation for CLI/debug output |
 | **Typed Config** | Dot-notation, O(1) cached lookups, type-safe getters |
 | **Arr Utilities** | dot/undot, flatten, pluck, groupBy, sortBy, first/last |
 | **Str Utilities** | camel/snake/kebab/studly, slug, UUID/ULID, mask, random (CSPRNG) |
@@ -34,13 +35,14 @@ composer require monkeyscloud/monkeyslegion-core:dev-2.0.0
 
 ## Architecture
 
-```
+```text
 src/
 ├── Attribute/          # #[Provider], #[BootAfter], #[Config]
 ├── Clock/              # PSR-20 SystemClock
 ├── Config/             # Typed ConfigRepository with dot-notation
 ├── Contract/           # Bootable, Deferrable, ExceptionRendererInterface
 ├── Environment/        # Backed enum + detector
+├── Error/              # Error renderers (interface + plain-text renderer)
 ├── Exception/          # Handler + HttpException with factories
 ├── Kernel/             # Application kernel with lifecycle hooks
 ├── Pipeline/           # Generic pipeline (Laravel parity)
@@ -169,6 +171,7 @@ $value = Once::callKeyed('config', fn() => loadConfig());
 ## Performance & Security
 
 ### Performance
+
 - **ConfigRepository**: O(1) cached dot-notation lookups after first access
 - **Pipeline**: Zero reflection, no container resolution overhead
 - **Kernel**: Topological sort (Kahn's algorithm) runs once during boot
@@ -176,6 +179,7 @@ $value = Once::callKeyed('config', fn() => loadConfig());
 - **Arr/Str**: Static methods with zero state, minimal allocations
 
 ### Security
+
 - **Exception Handler**: Never exposes stack traces, file paths, or internal details in production
 - **Str::random()**: CSPRNG-backed via random_int()
 - **Str::uuid()/ulid()**: CSPRNG-backed via random_bytes()
