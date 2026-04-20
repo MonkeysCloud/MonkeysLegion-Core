@@ -14,22 +14,23 @@ declare(strict_types=1);
 
 namespace MonkeysLegion\Core\Attribute;
 
+use Attribute;
+
 /**
- * Marks a class as a service provider discoverable by the kernel.
+ * Marks a class as an auto-discovered service provider.
  *
- * Usage:
- *   #[Provider(priority: 10)]
- *   final class DatabaseProvider extends AbstractProvider { ... }
+ * The ProviderScanner will detect classes annotated with this attribute
+ * and register them during the container build phase.
  */
-#[\Attribute(\Attribute::TARGET_CLASS)]
-final readonly class Provider
+#[Attribute(Attribute::TARGET_CLASS)]
+final class Provider
 {
     /**
-     * @param int  $priority Higher = registered first.
-     * @param bool $defer    Whether to defer registration until needed.
+     * @param int    $priority Higher priority providers are loaded first (default: 0)
+     * @param string $context  'all', 'http', or 'cli'
      */
     public function __construct(
-        public int $priority = 0,
-        public bool $defer = false,
+        public readonly int $priority = 0,
+        public readonly string $context = 'all',
     ) {}
 }
