@@ -152,18 +152,86 @@ if (!function_exists('dump')) {
     {
         $isCli = (PHP_SAPI === 'cli' || defined('STDOUT'));
 
-        foreach ($args as $arg) {
-            if ($isCli) {
+        if ($isCli) {
+            foreach ($args as $arg) {
                 var_export($arg);
                 echo PHP_EOL;
-            } else {
-                echo '<pre>' . htmlspecialchars(
-                    print_r($arg, true),
-                    ENT_QUOTES | ENT_SUBSTITUTE,
-                    'UTF-8',
-                ) . '</pre>';
             }
+            return;
         }
+
+        static $cssLoaded = false;
+        if (!$cssLoaded) {
+            echo '<style>
+                .ml-dump { background: #1e1e2e; color: #cdd6f4; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 13px; line-height: 1.5; padding: 1rem; margin: 1rem 0; border-radius: 8px; border: 1px solid #313244; overflow-x: auto; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5); text-align: left; }
+                .ml-dump-str { color: #a6e3a1; }
+                .ml-dump-int { color: #fab387; }
+                .ml-dump-bool { color: #f38ba8; font-weight: bold; }
+                .ml-dump-null { color: #6c7086; font-style: italic; }
+                .ml-dump-arr { color: #f9e2af; font-weight: bold; }
+                .ml-dump-obj { color: #89b4fa; font-weight: bold; }
+                .ml-dump-prop { color: #74c7ec; }
+                .ml-dump-key { color: #cba6f7; }
+                .ml-dump-toggle { cursor: pointer; user-select: none; display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; margin-right: 4px; border-radius: 2px; }
+                .ml-dump-toggle:hover { background: rgba(255,255,255,0.1); }
+                .ml-dump-toggle::before { content: "▼"; color: #6c7086; font-size: 10px; transition: transform 0.2s; }
+                .ml-dump-toggle.collapsed::before { transform: rotate(-90deg); }
+                .ml-dump-children { border-left: 1px dashed #45475a; margin-left: 6px; padding-left: 14px; margin-top: 2px; }
+                .ml-dump-children.collapsed { display: none; }
+            </style>
+            <script>
+                function mlDumpToggle(el) {
+                    el.classList.toggle("collapsed");
+                    el.nextElementSibling.nextElementSibling.classList.toggle("collapsed");
+                }
+            </script>';
+            $cssLoaded = true;
+        }
+
+        $format = function($val, $depth = 0) use (&$format) {
+            if ($depth > 5) return '<span class="ml-dump-str">... (max depth)</span>';
+
+            if (is_string($val)) return '<span class="ml-dump-str">"' . htmlspecialchars($val) . '"</span> <span style="color:#6c7086;font-size:10px;">('.strlen($val).')</span>';
+            if (is_int($val) || is_float($val)) return '<span class="ml-dump-int">' . $val . '</span>';
+            if (is_bool($val)) return '<span class="ml-dump-bool">' . ($val ? 'true' : 'false') . '</span>';
+            if ($val === null) return '<span class="ml-dump-null">null</span>';
+            
+            if (is_array($val)) {
+                $count = count($val);
+                if ($count === 0) return '<span class="ml-dump-arr">[]</span>';
+                $html = '<span class="ml-dump-toggle" onclick="mlDumpToggle(this)"></span><span class="ml-dump-arr">array:' . $count . '</span> [';
+                $html .= '<div class="ml-dump-children">';
+                foreach ($val as $k => $v) {
+                    $keyClass = is_string($k) ? 'ml-dump-key' : 'ml-dump-int';
+                    $html .= '<span class="' . $keyClass . '">' . (is_string($k) ? '"'.htmlspecialchars((string)$k).'"' : $k) . '</span> => ' . $format($v, $depth + 1) . '<br>';
+                }
+                $html .= '</div>]';
+                return $html;
+            }
+
+            if (is_object($val)) {
+                $class = get_class($val);
+                $html = '<span class="ml-dump-toggle" onclick="mlDumpToggle(this)"></span><span class="ml-dump-obj">' . $class . '</span> {';
+                $html .= '<div class="ml-dump-children">';
+                $ref = new \ReflectionObject($val);
+                foreach ($ref->getProperties() as $prop) {
+                    $prop->setAccessible(true);
+                    $v = $prop->isInitialized($val) ? $prop->getValue($val) : null;
+                    $mod = $prop->isPrivate() ? '- ' : ($prop->isProtected() ? '# ' : '+ ');
+                    $html .= '<span style="color:#6c7086;">'.$mod.'</span><span class="ml-dump-prop">' . $prop->getName() . '</span>: ' . $format($v, $depth + 1) . '<br>';
+                }
+                $html .= '</div>}';
+                return $html;
+            }
+            
+            return htmlspecialchars(var_export($val, true));
+        };
+
+        echo '<div class="ml-dump">';
+        foreach ($args as $arg) {
+            echo $format($arg) . '<br>';
+        }
+        echo '</div>';
     }
 }
 
